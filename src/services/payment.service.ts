@@ -8,6 +8,7 @@ import {
 import {
   createPayment,
   findPaymentByIdempotencyKey,
+  updatePaymentStatus,
 } from "../repositories/payment.repository.js";
 
 import { chargePayment } from "./payment-processor.service.js";
@@ -17,25 +18,21 @@ export async function processPayment(
 ): Promise<Payment> {
   const paymentId = randomUUID();
 
-  await chargePayment();
+  const pendingPayment = await createPayment({
+    ...input,
+    id: paymentId,
+    status: "PENDING",
+  });
 
-  try {
-    return await createPayment({
-      ...input,
-      id: paymentId,
-    });
-  } catch (error: any) {
-    if (error.code === "P2002") {
-      const existingPayment = await findPaymentByIdempotencyKey(
-        input.userId,
-        input.idempotencyKey
-      );
+  const processorResult = await chargePayment();
 
-      if (existingPayment) {
-        return existingPayment;
-      }
-    }
-
-    throw error;
+  if (processorResult === "SUCCESS") {
+    return updatePaymentStatus(paymentId, "SUCCESS");
   }
+
+  if (processorResult === "FAILED") {
+    return updatePaymentStatus(paymentId, "FAILED");
+  }
+
+  return pendingPayment;
 }

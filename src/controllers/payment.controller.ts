@@ -62,16 +62,18 @@ if (!lockAcquired) {
         idempotencyKey,
     });
 
-   const responseBody = {
+  const responseBody = {
   payment,
 };
 
+const statusCode = payment.status === "PENDING" ? 202 : 201;
+
 await saveCachedResponse(idempotencyKey, {
-  statusCode: 201,
+  statusCode,
   body: responseBody,
 });
 
-return res.status(201).json(responseBody);
+return res.status(statusCode).json(responseBody);
     }
     finally{
         await releaseLock(idempotencyKey);
