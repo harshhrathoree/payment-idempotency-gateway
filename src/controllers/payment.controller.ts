@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { processPayment } from "../services/payment.service.js";
 import {
-    getCachedResponse,
-    saveCachedResponse,
+  getCachedResponse,
+  saveCachedResponse,
+  acquireLock,
+  releaseLock,
 } from "../services/idempotency.service.js";
 
 const SUPPORTED_CURRENCIES = ["INR"];
@@ -23,6 +25,15 @@ export async function createPayment(
     if (cachedResponse) {
         return res.status(cachedResponse.statusCode).json(cachedResponse.body);
     }
+    const lockAcquired = await acquireLock(idempotencyKey);
+
+if (!lockAcquired) {
+  return res.status(409).json({
+    error: "Payment with this Idempotency-Key is already being processed",
+  });
+}
+
+    try{
     const { userId, amount, currency } = req.body;
 
     if (!userId || amount === undefined || !currency) {
@@ -60,4 +71,8 @@ await saveCachedResponse(idempotencyKey, {
 });
 
 return res.status(201).json(responseBody);
+    }
+    finally{
+        await releaseLock(idempotencyKey);
+    }
 }

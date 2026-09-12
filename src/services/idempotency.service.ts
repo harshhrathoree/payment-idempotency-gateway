@@ -46,3 +46,33 @@ export async function deleteCachedResponse(
 
   await redis.del(key);
 }
+
+const IDEMPOTENCY_LOCK_TTL_SECONDS = 10;
+
+function getLockKey(idempotencyKey: string): string {
+  return `idempotency:lock:${idempotencyKey}`;
+}
+
+export async function acquireLock(
+  idempotencyKey: string
+): Promise<boolean> {
+  const key = getLockKey(idempotencyKey);
+
+  const result = await redis.set(
+    key,
+    "LOCKED",
+    "EX",
+    IDEMPOTENCY_LOCK_TTL_SECONDS,
+    "NX"
+  );
+
+  return result === "OK";
+}
+
+export async function releaseLock(
+  idempotencyKey: string
+): Promise<void> {
+  const key = getLockKey(idempotencyKey);
+
+  await redis.del(key);
+}
