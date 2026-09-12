@@ -1,40 +1,63 @@
 import { Request, Response } from "express";
 import { processPayment } from "../services/payment.service.js";
+import {
+    getCachedResponse,
+    saveCachedResponse,
+} from "../services/idempotency.service.js";
 
 const SUPPORTED_CURRENCIES = ["INR"];
 
 export async function createPayment(
-  req: Request,
-  res: Response
+    req: Request,
+    res: Response
 ) {
-  const { userId, amount, currency } = req.body;
+    const idempotencyKey = req.header("Idempotency-Key");
 
-  if (!userId || amount === undefined || !currency) {
-    return res.status(400).json({
-      error: "userId, amount and currency are required",
+    if (!idempotencyKey) {
+        return res.status(400).json({
+            error: "Idempotency-Key header is required",
+        });
+    }
+    const cachedResponse = await getCachedResponse(idempotencyKey);
+
+    if (cachedResponse) {
+        return res.status(cachedResponse.statusCode).json(cachedResponse.body);
+    }
+    const { userId, amount, currency } = req.body;
+
+    if (!userId || amount === undefined || !currency) {
+        return res.status(400).json({
+            error: "userId, amount and currency are required",
+        });
+    }
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return res.status(400).json({
+            error:
+                "amount must be a positive integer in the smallest currency unit",
+        });
+    }
+
+    if (!SUPPORTED_CURRENCIES.includes(currency)) {
+        return res.status(400).json({
+            error: `Unsupported currency: ${currency}`,
+        });
+    }
+
+    const payment = await processPayment({
+        userId,
+        amount,
+        currency,
     });
-  }
 
-  if (!Number.isInteger(amount) || amount <= 0) {
-    return res.status(400).json({
-      error:
-        "amount must be a positive integer in the smallest currency unit",
-    });
-  }
+   const responseBody = {
+  payment,
+};
 
-  if (!SUPPORTED_CURRENCIES.includes(currency)) {
-    return res.status(400).json({
-      error: `Unsupported currency: ${currency}`,
-    });
-  }
+await saveCachedResponse(idempotencyKey, {
+  statusCode: 201,
+  body: responseBody,
+});
 
-  const payment = await processPayment({
-    userId,
-    amount,
-    currency,
-  });
-
-  return res.status(201).json({
-    payment,
-  });
+return res.status(201).json(responseBody);
 }
