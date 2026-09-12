@@ -4,6 +4,7 @@ import {
   checkPostgresConnection,
   checkRedisConnection,
 } from "./config/check-connections.js";
+import { logger } from "./config/logger.js";
 
 async function startServer() {
   try {
@@ -11,10 +12,16 @@ async function startServer() {
     await checkRedisConnection();
 
     app.listen(env.port, () => {
-      console.log(`Server running on port ${env.port}`);
+      logger.info(
+        { port: env.port },
+        "Server started"
+      );
     });
   } catch (error) {
-    console.error("Failed to start server:", error);
+    logger.error(
+      { error },
+      "Failed to start server"
+    );
 
     process.exit(1);
   }

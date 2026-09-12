@@ -1,14 +1,20 @@
 import { prisma } from "./prisma.js";
 import { redis } from "./redis.js";
+import { logger } from "./logger.js";
 
 export async function checkPostgresConnection() {
   await prisma.$queryRaw`SELECT 1`;
 
-  console.log("PostgreSQL connected");
+  logger.info(
+    "PostgreSQL connected"
+  );
 }
 
 export async function checkRedisConnection() {
   const result = await redis.ping();
 
-  console.log("Redis connected:", result);
+  logger.info(
+    { response: result },
+    "Redis connected"
+  );
 }
