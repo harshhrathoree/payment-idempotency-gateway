@@ -14,14 +14,16 @@ enum PaymentStatus {
 }
 
 model Payment {
-  id        String        @id @default(uuid())
-  userId    String        @map("user_id")
-  amount    BigInt
-  currency  String        @db.VarChar(3)
-  status    PaymentStatus
+  id             String        @id @default(uuid())
+  userId         String        @map("user_id")
+  idempotencyKey String        @map("idempotency_key")
+  amount         BigInt
+  currency       String        @db.VarChar(3)
+  status         PaymentStatus
 
-  createdAt DateTime      @default(now()) @map("created_at")
-  updatedAt DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([userId, idempotencyKey])
   @@map("payments")
 }

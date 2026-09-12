@@ -59,6 +59,7 @@ if (!lockAcquired) {
         userId,
         amount,
         currency,
+        idempotencyKey,
     });
 
    const responseBody = {
