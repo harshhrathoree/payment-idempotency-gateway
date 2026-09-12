@@ -23,6 +23,12 @@ app.use(
 
 
 app.use(rateLimit);
+app.get("/api/v1/load-test", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
