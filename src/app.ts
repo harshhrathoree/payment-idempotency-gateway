@@ -1,4 +1,5 @@
 import express from "express";
+import paymentRoutes from "./routes/payment.routes.js";
 
 const app = express();
 
@@ -9,5 +10,7 @@ app.get("/health", (_req, res) => {
     status: "ok",
   });
 });
+
+app.use("/api/v1", paymentRoutes);
 
 export default app;

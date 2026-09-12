@@ -1,10 +1,10 @@
-import { postgres } from "./postgres.js";
+import { prisma } from "./prisma.js";
 import { redis } from "./redis.js";
 
 export async function checkPostgresConnection() {
-  const result = await postgres.query("SELECT NOW()");
+  await prisma.$queryRaw`SELECT 1`;
 
-  console.log("PostgreSQL connected:", result.rows[0]);
+  console.log("PostgreSQL connected");
 }
 
 export async function checkRedisConnection() {
