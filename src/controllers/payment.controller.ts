@@ -6,6 +6,16 @@ import {
   acquireLock,
   releaseLock,
 } from "../services/idempotency.service.js";
+import {
+  paymentRequestsTotal,
+  paymentSuccessTotal,
+  paymentFailedTotal,
+  paymentTimeoutTotal,
+  idempotencyCacheHitTotal,
+  idempotencyCacheMissTotal,
+  idempotencyConflictTotal,
+  paymentProcessingDuration,
+} from "../config/metrics.js";
 
 const SUPPORTED_CURRENCIES = ["INR"];
 
@@ -13,6 +23,7 @@ export async function createPayment(
   req: Request,
   res: Response
 ) {
+    paymentRequestsTotal.inc();
   const idempotencyKey = req.header("Idempotency-Key");
 
   req.log.info("Payment request received");
@@ -28,6 +39,8 @@ export async function createPayment(
   const cachedResponse = await getCachedResponse(idempotencyKey);
 
   if (cachedResponse) {
+     idempotencyCacheHitTotal.inc();
+
     req.log.info(
       "Idempotency cache hit"
     );
@@ -40,6 +53,7 @@ export async function createPayment(
   req.log.info(
     "Idempotency cache miss"
   );
+  idempotencyCacheMissTotal.inc();
 
   const lockAcquired = await acquireLock(idempotencyKey);
 
@@ -48,6 +62,7 @@ export async function createPayment(
       { idempotencyKey },
       "Payment already processing"
     );
+      idempotencyConflictTotal.inc();
 
     return res.status(409).json({
       error:
@@ -104,12 +119,14 @@ export async function createPayment(
   "Processing payment"
 );
 
+    const endTimer = paymentProcessingDuration.startTimer();
     const payment = await processPayment({
       userId,
       amount,
       currency,
       idempotencyKey,
     });
+    endTimer();
 
    req.log.info(
   {
@@ -125,6 +142,18 @@ export async function createPayment(
 
     const statusCode =
       payment.status === "PENDING" ? 202 : 201;
+
+    if (payment.status === "SUCCESS") {
+  paymentSuccessTotal.inc();
+}
+
+if (payment.status === "FAILED") {
+  paymentFailedTotal.inc();
+}
+
+if (payment.status === "PENDING") {
+  paymentTimeoutTotal.inc();
+}
 
     await saveCachedResponse(idempotencyKey, {
       statusCode,

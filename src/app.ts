@@ -4,6 +4,7 @@ import { rateLimit } from "./middleware/rate-limit.middleware.js";
 import {pinoHttp} from "pino-http";
 import { randomUUID } from "node:crypto";
 import { logger } from "./config/logger.js";
+import { register } from "./config/metrics.js";
 const app = express();
 
 app.use(express.json());
@@ -21,6 +22,10 @@ app.use(
   })
 );
 
+app.get("/metrics", async (_req, res) => {
+  res.setHeader("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
 
 app.use(rateLimit);
 app.get("/api/v1/load-test", (req, res) => {
